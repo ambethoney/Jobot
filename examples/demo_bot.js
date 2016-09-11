@@ -77,6 +77,9 @@ controller.spawn({
 controller.hears(['hello','hi'],['direct_message','direct_mention','mention'],function(bot,message) {
     bot.reply(message,"Hello.");
 });
+controller.hears(['unemployed', 'need'],['direct_message','direct_mention','mention'],function(bot,message) {
+    bot.reply(message,"Want me to look help you find a job?");
+});
 
 controller.hears(['attach'],['direct_message','direct_mention'],function(bot,message) {
 
@@ -124,4 +127,35 @@ controller.hears(['dm me'],['direct_message','direct_mention'],function(bot,mess
     dm.say('Private reply!');
   });
 
+});
+
+controller.hears(['job'], ['direct_message'], function(bot,message) {
+  askLanguage = function(response, convo) {
+        var language, location, company;
+        convo.ask('What kind of job? IE - front end, JavaScript, C#', function(response, convo) {
+          language = response.text;
+          convo.say('Great, '+language+' it is.');
+          askLocation(response, convo, language);
+          convo.next();
+        });
+      }
+      askLocation = function(response, convo, language) {
+        convo.ask('Which location(s) are you interested in?', function(response, convo) {
+          location = response.text;
+          console.log(location.split(','));
+          convo.say('Ok, so ' + location);
+          askCompany(response, convo, language);
+          convo.next();
+        });
+      }
+      askCompany = function(response, convo, language) {
+        convo.ask('Any particular company?', function(response, convo) {
+          company = response.text;
+          // convo.say('Ok! Good bye.');
+          convo.say('So you want a ' +language + 'position in  ' + location + ' right?');
+          convo.next();
+        });
+      }
+
+      bot.startConversation(message, askLanguage);
 });

@@ -4,7 +4,7 @@
           \ \  __<   \ \ \/\ \  \/_/\ \/ \ \  _"-.  \ \ \  \/_/\ \/
            \ \_____\  \ \_____\    \ \_\  \ \_\ \_\  \ \_\    \ \_\
             \/_____/   \/_____/     \/_/   \/_/\/_/   \/_/     \/_/
-            
+
 
 This is a sample Slack Button application that allows the application
 to post messages into Slack.
@@ -50,6 +50,7 @@ This bot demonstrates many of the core features of Botkit:
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 var Botkit = require('../lib/Botkit.js');
+var postURL = 'https://hooks.slack.com/services/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';
 
 if (!process.env.clientId || !process.env.clientSecret || !process.env.port) {
   console.log('Error: Specify clientId clientSecret and port in environment');
@@ -81,7 +82,7 @@ controller.setupWebserver(process.env.port,function(err,webserver) {
   // anyone on the internet who found your node app to
   // broadcast to all teams who have added your integration.
   // it is included for demonstration purposes only!!!
-  webserver.post('/unsafe_endpoint',function(req,res) {
+  webserver.post(postURL,function(req,res) {
     var text = req.body.text;
     text = text.trim();
 
