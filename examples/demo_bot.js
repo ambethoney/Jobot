@@ -53,20 +53,20 @@ This bot demonstrates many of the core features of Botkit:
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
+const http = require('http');
 var Botkit = require('../lib/Botkit.js');
-
+var jobSearch = {};
 
 if (!process.env.token) {
   console.log('Error: Specify token in environment');
   process.exit(1);
 }
-
 var controller = Botkit.slackbot({
- debug: false
+    debug: false
 });
 
-controller.spawn({
-  token: process.env.token
+var bot = controller.spawn({
+    token: process.env.token
 }).startRTM(function(err) {
   if (err) {
     throw new Error(err);
@@ -74,49 +74,7 @@ controller.spawn({
 });
 
 
-controller.hears(['hello','hi'],['direct_message','direct_mention','mention'],function(bot,message) {
-    bot.reply(message,"Hello.");
-});
-controller.hears(['unemployed', 'need'],['direct_message','direct_mention','mention'],function(bot,message) {
-    bot.reply(message,"Want me to look help you find a job?");
-});
-
-controller.hears(['attach'],['direct_message','direct_mention'],function(bot,message) {
-
-  var attachments = [];
-  var attachment = {
-    title: 'This is an attachment',
-    color: '#FFCC99',
-    fields: [],
-  };
-
-  attachment.fields.push({
-    label: 'Field',
-    value: 'A longish value',
-    short: false,
-  });
-
-  attachment.fields.push({
-    label: 'Field',
-    value: 'Value',
-    short: true,
-  });
-
-  attachment.fields.push({
-    label: 'Field',
-    value: 'Value',
-    short: true,
-  });
-
-  attachments.push(attachment);
-
-  bot.reply(message,{
-    text: 'See below...',
-    attachments: attachments,
-  },function(err,resp) {
-    console.log(err,resp);
-  });
-});
+//TODO: Customize this function!!
 
 controller.hears(['dm me'],['direct_message','direct_mention'],function(bot,message) {
   bot.startConversation(message,function(err,convo) {
@@ -129,33 +87,97 @@ controller.hears(['dm me'],['direct_message','direct_mention'],function(bot,mess
 
 });
 
-controller.hears(['job'], ['direct_message'], function(bot,message) {
-  askLanguage = function(response, convo) {
-        var language, location, company;
-        convo.ask('What kind of job? IE - front end, JavaScript, C#', function(response, convo) {
-          language = response.text;
-          convo.say('Great, '+language+' it is.');
-          askLocation(response, convo, language);
-          convo.next();
-        });
-      }
-      askLocation = function(response, convo, language) {
-        convo.ask('Which location(s) are you interested in?', function(response, convo) {
-          location = response.text;
-          console.log(location.split(','));
-          convo.say('Ok, so ' + location);
-          askCompany(response, convo, language);
-          convo.next();
-        });
-      }
-      askCompany = function(response, convo, language) {
-        convo.ask('Any particular company?', function(response, convo) {
-          company = response.text;
-          // convo.say('Ok! Good bye.');
-          convo.say('So you want a ' +language + 'position in  ' + location + ' right?');
-          convo.next();
-        });
-      }
 
-      bot.startConversation(message, askLanguage);
+controller.hears(['hello','hi'],['direct_message','direct_mention','mention'],function(bot,message) {
+    bot.reply(message,"Hello.");
+});
+
+
+controller.hears(['job', 'unemployed'], ['direct_message'], function(bot,message) {
+
+  bot.startConversation(message, function(err, convo) {
+    if(!err){
+      convo.say('Let\'s get you a new job!');
+      convo.ask('What kind of job? IE - front end, JavaScript, C#...', function(response, convo) {
+        convo.next();
+      }, {'key': 'technology'});
+      convo.ask('Which location(s) are you interested in?', function(response, convo) {
+        convo.next();
+      }, {'key': 'location'});
+      // convo.ask('Any particular company?', [
+      //   {
+      //     pattern: bot.utterances.yes,
+      //     callback: function(response,convo) {
+      //       convo.ask('Okay, which one?', function(response, convo) {
+      //         convo.next();
+      //       });
+      //      convo.next();
+      //    }, {'key': 'company'});
+      //  },
+      //   {
+      //     pattern: bot.utterances.no,
+      //     callback: function(response,convo) {
+      //       convo.say('Keeping your options open, I like it!');
+      //      convo.next();
+      //    }, {'key': 'company'});
+      //  },
+      //  {
+      //     default: true,
+      //     callback: function(response,convo) {
+      //       // just repeat the question
+      //       convo.repeat();
+      //       convo.next();
+      //     }
+      //   }
+      // ]);
+    }
+
+    convo.on('end', function(convo) {
+        if (convo.status == 'completed') {
+
+            jobSearch.technology = convo.extractResponse('technology');
+            jobSearch.location = convo.extractResponse('location');
+            // jobSearch.company = convo.extractResponse('company');
+            bot.reply(message, 'OK! Let me check Glassdoor for a ' + jobSearch.technology + ' postion in ' + jobSearch.location +'!');
+            convo.next();
+            // var searchURL = 'http://api.indeed.com/ads/apisearch?publisher=1848074416735394&q='+jobSearch.technology+'&l='+jobSearch.location+'&v=2';
+            var searchURL = 'api.indeed.com';
+
+            var options = {
+              host: searchURL,
+              path: '/ads/apisearch?publisher=1848074416735394&q='+ jobSearch.technology + '&l='+ jobSearch.location+'&format=json&v=2',
+              method: 'GET'
+            }
+
+            var req = http.get(options, (res) => {
+              var body = '';
+              res.on('data', (d) => {
+                body += d;
+              });
+              res.on('end',(d)=> {
+                var data = JSON.parse(body);
+                var jobs = data.results;
+
+                for(i = 0;i<jobs.length;i++)
+                {
+                  var jobTitle =jobs[i]['jobtitle'];
+                  var jobCompany =jobs[i]['company'];
+                  var jobSnippet =jobs[i]['snippet'];
+                  var jobURL =jobs[i]['url'];
+
+                  bot.reply(message, jobCompany + ' is looking for a '+
+                                     jobTitle + '. Here\'s what they say: ' + jobSnippet + 'check it out here: ' +jobURL);
+                }
+
+
+              });
+            });
+
+
+        } else {
+            // this happens if the conversation ended prematurely for some reason
+            bot.reply(message, 'OK, nevermind!');
+        }
+    });
+  });
 });
